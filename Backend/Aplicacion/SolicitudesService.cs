@@ -27,25 +27,19 @@ public class SolicitudesService
         int pageSize,
         string? sort)
     {
-        // Validar paginación
         if (page < 1)
             throw new ArgumentException("La página debe ser mayor o igual a 1.");
         if (pageSize > 100)
             throw new ArgumentException("El tamaño de página máximo es 100.");
 
-        // Base query filtrada por tenant
         var query = _db.Solicitudes
             .Include(s => s.Categoria)
             .Include(s => s.Agente)
             .Where(s => s.TenantId == tenantId);
 
-        // Si el rol es Solicitante, solo ve sus propias solicitudes
         if (rol == "Solicitante" && usuarioId.HasValue)
-        {
             query = query.Where(s => s.SolicitanteId == usuarioId.Value);
-        }
 
-        // Filtros exactos
         if (!string.IsNullOrWhiteSpace(estado) && Enum.TryParse<EstadoSolicitud>(estado, out var estadoEnum))
             query = query.Where(s => s.Estado == estadoEnum);
 
@@ -58,7 +52,6 @@ public class SolicitudesService
         if (agenteId.HasValue)
             query = query.Where(s => s.AgenteId == agenteId.Value);
 
-        // Búsqueda en título, descripción y código (case-insensitive)
         if (!string.IsNullOrWhiteSpace(q))
         {
             q = q.ToLower();
@@ -68,7 +61,6 @@ public class SolicitudesService
                 s.Codigo.ToLower().Contains(q));
         }
 
-        // Filtro de vencidas
         if (vencidas == true)
         {
             var ahora = DateTime.UtcNow;
@@ -79,7 +71,6 @@ public class SolicitudesService
                 s.Estado != EstadoSolicitud.Cancelada);
         }
 
-        // Ordenamiento
         query = sort switch
         {
             "fechaCreacion" => query.OrderBy(s => s.FechaCreacion),
@@ -87,7 +78,7 @@ public class SolicitudesService
             "prioridad" => query.OrderBy(s => s.Prioridad),
             "-prioridad" => query.OrderByDescending(s => s.Prioridad),
             "codigo" => query.OrderBy(s => s.Codigo),
-            _ => query.OrderByDescending(s => s.FechaCreacion) // default
+            _ => query.OrderByDescending(s => s.FechaCreacion)
         };
 
         var total = await query.CountAsync();
@@ -119,6 +110,97 @@ public class SolicitudesService
             PageSize = pageSize,
             Total = total,
             TotalPaginas = (int)Math.Ceiling(total / (double)pageSize)
+        };
+    }
+
+    public async Task<SolicitudDetalle> Crear(Guid tenantId, Guid solicitanteId, CrearSolicitudRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Titulo) || request.Titulo.Length < 5 || request.Titulo.Length > 120)
+            throw new ArgumentException("El título debe tener entre 5 y 120 caracteres.");
+
+        if (string.IsNullOrWhiteSpace(request.Descripcion) || request.Descripcion.Length < 10 || request.Descripcion.Length > 4000)
+            throw new ArgumentException("La descripción debe tener entre 10 y 4000 caracteres.");
+
+        var categoria = await _db.Categorias.FirstOrDefaultAsync(c => c.Id == request.CategoriaId && c.TenantId == tenantId && c.Activo);
+        if (categoria == null)
+            throw new ArgumentException("La categoría no existe o no pertenece a la organización.");
+
+        var ahora = DateTime.UtcNow;
+        var factor = request.Prioridad switch
+        {
+            Prioridad.Critica => 0.5,
+            Prioridad.Alta => 0.75,
+            Prioridad.Media => 1.0,
+            Prioridad.Baja => 2.0,
+            _ => 1.0
+        };
+        var fechaLimiteSla = ahora.AddHours(categoria.SlaHoras * factor);
+
+        var año = ahora.Year;
+        var correlativo = await _db.Solicitudes
+            .Where(s => s.TenantId == tenantId && s.FechaCreacion.Year == año)
+            .CountAsync() + 1;
+        var codigo = $"SOL-{año}-{correlativo:D5}";
+
+        var solicitud = new Solicitud
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Codigo = codigo,
+            Titulo = request.Titulo,
+            Descripcion = request.Descripcion,
+            CategoriaId = categoria.Id,
+            Prioridad = request.Prioridad,
+            Estado = EstadoSolicitud.Nueva,
+            SolicitanteId = solicitanteId,
+            AgenteId = null,
+            FechaCreacion = ahora,
+            FechaLimiteSla = fechaLimiteSla,
+            FechaResolucion = null,
+            MotivoResolucion = null,
+            MotivoCancelacion = null
+        };
+
+        _db.Solicitudes.Add(solicitud);
+        await _db.SaveChangesAsync();
+
+        var creada = await _db.Solicitudes
+            .Include(s => s.Categoria)
+            .Include(s => s.Solicitante)
+            .FirstAsync(s => s.Id == solicitud.Id);
+
+        return MapToDetalle(creada);
+    }
+
+    public async Task<SolicitudDetalle?> ObtenerPorId(Guid tenantId, Guid id)
+    {
+        var solicitud = await _db.Solicitudes
+            .Include(s => s.Categoria)
+            .Include(s => s.Solicitante)
+            .Include(s => s.Agente)
+            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
+
+        return solicitud == null ? null : MapToDetalle(solicitud);
+    }
+
+    private SolicitudDetalle MapToDetalle(Solicitud s)
+    {
+        return new SolicitudDetalle
+        {
+            Id = s.Id,
+            Codigo = s.Codigo,
+            Titulo = s.Titulo,
+            Descripcion = s.Descripcion,
+            Estado = s.Estado.ToString(),
+            Prioridad = s.Prioridad.ToString(),
+            Categoria = new CategoriaItem { Id = s.Categoria.Id, Nombre = s.Categoria.Nombre },
+            Solicitante = new UsuarioItem { Id = s.Solicitante.Id, Nombre = s.Solicitante.Nombre },
+            Agente = s.Agente == null ? null : new AgenteItem { Id = s.Agente.Id, Nombre = s.Agente.Nombre },
+            FechaCreacion = s.FechaCreacion,
+            FechaLimiteSla = s.FechaLimiteSla,
+            FechaResolucion = s.FechaResolucion,
+            MotivoResolucion = s.MotivoResolucion,
+            MotivoCancelacion = s.MotivoCancelacion
         };
     }
 }
@@ -153,6 +235,38 @@ public class CategoriaItem
 }
 
 public class AgenteItem
+{
+    public Guid Id { get; set; }
+    public string Nombre { get; set; } = "";
+}
+
+public class CrearSolicitudRequest
+{
+    public string Titulo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public Guid CategoriaId { get; set; }
+    public Prioridad Prioridad { get; set; }
+}
+
+public class SolicitudDetalle
+{
+    public Guid Id { get; set; }
+    public string Codigo { get; set; } = "";
+    public string Titulo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public string Estado { get; set; } = "";
+    public string Prioridad { get; set; } = "";
+    public CategoriaItem Categoria { get; set; } = null!;
+    public UsuarioItem Solicitante { get; set; } = null!;
+    public AgenteItem? Agente { get; set; }
+    public DateTime FechaCreacion { get; set; }
+    public DateTime FechaLimiteSla { get; set; }
+    public DateTime? FechaResolucion { get; set; }
+    public string? MotivoResolucion { get; set; }
+    public string? MotivoCancelacion { get; set; }
+}
+
+public class UsuarioItem
 {
     public Guid Id { get; set; }
     public string Nombre { get; set; } = "";

@@ -63,4 +63,48 @@ public class SolicitudesController : ControllerBase
             });
         }
     }
-}
+
+    [HttpPost]
+    public async Task<IActionResult> Crear([FromBody] CrearSolicitudRequest request)
+    {
+        try
+        {
+            var tenantId = Guid.Parse(User.FindFirst("tenantId")!.Value);
+            var usuarioId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+            var detalle = await _service.Crear(tenantId, usuarioId, request);
+
+            return CreatedAtAction(nameof(Detalle), new { id = detalle.Id }, detalle);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                type = "https://mesasitec.local/errores/parametro-invalido",
+                title = "Parámetro inválido",
+                status = 400,
+                detail = ex.Message,
+                codigo = "PARAMETRO_INVALIDO"
+            });
+        }
+    }
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Detalle(Guid id)
+    {
+        var tenantId = Guid.Parse(User.FindFirst("tenantId")!.Value);
+        var detalle = await _service.ObtenerPorId(tenantId, id);
+
+        if (detalle == null)
+            return NotFound(new
+            {
+                type = "https://mesasitec.local/errores/recurso-no-encontrado",
+                title = "Recurso no encontrado",
+                status = 404,
+                detail = "La solicitud no existe o no pertenece a la organización.",
+                codigo = "RECURSO_NO_ENCONTRADO"
+            });
+
+        return Ok(detalle);
+    }
+}   
