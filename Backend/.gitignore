@@ -1,0 +1,20 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.db
+*.db-shm
+*.db-wal
+.vs/
+
+# Node (por si después usás frontend)
+node_modules/
+dist/
+
+# Archivos de entorno no versiona secretos
+.env
+
+*.xlsx
+*.docx
+
