@@ -157,4 +157,4 @@ public static class SeedData
         await db.SaveChangesAsync();
         Console.WriteLine("=== SEED: Datos insertados correctamente. ===");
     }
-}
+}   
