@@ -6,6 +6,7 @@ using System.Text;
 using Api.Datos;
 using Api.Seed;
 using Api.Auth;
+using Api.Aplicacion;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,7 @@ builder.Services.AddAuthorization();
 
 // Servicios propios
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<SolicitudesService>();
 
 // Controllers + Swagger
 builder.Services.AddControllers()

@@ -8,7 +8,7 @@ obj/
 *.db-wal
 .vs/
 
-# Node (por si después usás frontend)
+# Node (para el frontend en un futuro)
 node_modules/
 dist/
 
