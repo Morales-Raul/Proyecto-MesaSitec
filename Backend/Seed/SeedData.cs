@@ -62,8 +62,6 @@ public static class SeedData
         db.Categorias.AddRange(categoriasSur);
 
         // --- Solicitudes ---
-        Guid CatN(string nombre) => categoriasNorte.First(c => c.Nombre == nombre).Id;
-        Guid CatS(string nombre) => categoriasSur.First(c => c.Nombre == nombre).Id;
         Usuario U(string email) => usuarios.First(u => u.Email == email);
 
         var solicitudesNorte = new List<Solicitud>();

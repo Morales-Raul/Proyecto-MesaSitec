@@ -134,7 +134,7 @@ public class SolicitudesService
             Prioridad.Baja => 2.0,
             _ => 1.0
         };
-        var fechaLimiteSla = ahora.AddHours(categoria.SlaHoras * factor);
+        var fechaLimiteSla = SlaCalculator.CalcularFechaLimite(ahora, categoria.SlaHoras, request.Prioridad);
 
         var año = ahora.Year;
         var correlativo = await _db.Solicitudes
@@ -221,7 +221,7 @@ public class SolicitudesService
                 Prioridad.Baja => 2.0,
                 _ => 1.0
             };
-            solicitud.FechaLimiteSla = solicitud.FechaCreacion.AddHours(categoria.SlaHoras * factor);
+            solicitud.FechaLimiteSla = SlaCalculator.CalcularFechaLimite(solicitud.FechaCreacion, categoria.SlaHoras, request.Prioridad);
         }
 
         await _db.SaveChangesAsync();
