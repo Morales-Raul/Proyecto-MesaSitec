@@ -154,4 +154,84 @@ public class SolicitudesController : ControllerBase
             });
         }
     }
+    [HttpPost("{id}/transiciones")]
+public async Task<IActionResult> EjecutarTransicion(Guid id, [FromBody] TransicionRequest request)
+{
+    try
+    {
+        var tenantId = Guid.Parse(User.FindFirst("tenantId")!.Value);
+        var usuarioId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+        var rol = User.FindFirst("rol")!.Value;
+
+        var detalle = await _service.EjecutarTransicion(tenantId, usuarioId, rol, id, request);
+        return Ok(detalle);
+    }
+    catch (KeyNotFoundException)
+    {
+        return NotFound(new
+        {
+            type = "https://mesasitec.local/errores/recurso-no-encontrado",
+            title = "Recurso no encontrado",
+            status = 404,
+            detail = "La solicitud no existe o no pertenece a la organización.",
+            codigo = "RECURSO_NO_ENCONTRADO"
+        });
+    }
+    catch (TransicionInvalidaException ex)
+    {
+        return Conflict(new
+        {
+            type = "https://mesasitec.local/errores/transicion-invalida",
+            title = "Transición inválida",
+            status = 409,
+            detail = ex.Message,
+            codigo = "TRANSICION_INVALIDA"
+        });
+    }
+    catch (OperacionNoPermitidaException ex)
+    {
+        return StatusCode(403, new
+        {
+            type = "https://mesasitec.local/errores/operacion-no-permitida",
+            title = "Operación no permitida",
+            status = 403,
+            detail = ex.Message,
+            codigo = "OPERACION_NO_PERMITIDA"
+        });
+    }
+    catch (AgenteInvalidoException)
+    {
+        return UnprocessableEntity(new
+        {
+            type = "https://mesasitec.local/errores/agente-invalido",
+            title = "Agente inválido",
+            status = 422,
+            detail = "El agente especificado no existe, no está activo, o no pertenece a la organización.",
+            codigo = "AGENTE_INVALIDO"
+        });
+    }
+    catch (MotivoRequeridoException ex)
+    {
+        return UnprocessableEntity(new
+        {
+            type = "https://mesasitec.local/errores/motivo-requerido",
+            title = "Motivo requerido",
+            status = 422,
+            detail = ex.Message,
+            codigo = "MOTIVO_REQUERIDO",
+            errores = new Dictionary<string, string[]> { { ex.Campo, new[] { ex.Message } } }
+        });
+    }
+    catch (ArgumentException ex)
+    {
+        return BadRequest(new
+        {
+            type = "https://mesasitec.local/errores/parametro-invalido",
+            title = "Parámetro inválido",
+            status = 400,
+            detail = ex.Message,
+            codigo = "PARAMETRO_INVALIDO"
+        });
+        }
+    }
 }

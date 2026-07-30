@@ -260,6 +260,41 @@ public class SolicitudesService
             MotivoCancelacion = s.MotivoCancelacion
         };
     }
+
+    public async Task<SolicitudDetalle> EjecutarTransicion(Guid tenantId, Guid usuarioId, string rol, Guid id, TransicionRequest request)
+{
+    var solicitud = await _db.Solicitudes
+        .Include(s => s.Categoria)
+        .Include(s => s.Solicitante)
+        .Include(s => s.Agente)
+        .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
+
+    if (solicitud == null)
+        throw new KeyNotFoundException("Solicitud no encontrada.");
+
+    // Validación adicional de RN-05 si la acción es 'asignar'
+    if (request.Accion == "asignar")
+    {
+        if (request.AgenteId == null)
+            throw new ArgumentException("Se requiere un agenteId para la acción 'asignar'.");
+
+        var agente = await _db.Usuarios.FirstOrDefaultAsync(u =>
+            u.Id == request.AgenteId.Value &&
+            u.TenantId == tenantId &&
+            u.Activo &&
+            (u.Rol == Rol.Agente || u.Rol == Rol.Admin));
+
+        if (agente == null)
+            throw new AgenteInvalidoException();
+    }
+
+    var maquina = new MaquinaEstados();
+    maquina.Ejecutar(solicitud, request.Accion, rol, usuarioId, request.AgenteId, request.Motivo);
+
+    await _db.SaveChangesAsync();
+
+    return MapToDetalle(solicitud);
+    }
 }
 
 public class SolicitudesResponse
@@ -335,4 +370,16 @@ public class UsuarioItem
 {
     public Guid Id { get; set; }
     public string Nombre { get; set; } = "";
+}
+
+public class TransicionRequest
+{
+    public string Accion { get; set; } = "";
+    public Guid? AgenteId { get; set; }
+    public string? Motivo { get; set; }
+}
+
+public class AgenteInvalidoException : Exception
+{
+    public AgenteInvalidoException() : base("El agente especificado no es válido.") { }
 }
