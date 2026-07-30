@@ -38,6 +38,7 @@ builder.Services.AddAuthorization();
 // Servicios propios
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<SolicitudesService>();
+builder.Services.AddScoped<CategoriasService>();
 
 // Controllers + Swagger
 builder.Services.AddControllers()
