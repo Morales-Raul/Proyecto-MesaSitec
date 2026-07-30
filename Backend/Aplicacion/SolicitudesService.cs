@@ -172,6 +172,63 @@ public class SolicitudesService
         return MapToDetalle(creada);
     }
 
+    public async Task<SolicitudDetalle?> Editar(Guid tenantId, Guid usuarioId, string rol, Guid id, EditarSolicitudRequest request)
+    {
+        var solicitud = await _db.Solicitudes
+         .Include(s => s.Categoria)
+         .Include(s => s.Solicitante)   // ← agregar esta línea
+         .Include(s => s.Agente)
+         .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
+
+        if (solicitud == null)
+            return null;
+
+        // RN-03: Solicitante solo edita las propias y en estado Nueva
+        if (rol == "Solicitante" && (solicitud.SolicitanteId != usuarioId || solicitud.Estado != EstadoSolicitud.Nueva))
+            throw new UnauthorizedAccessException("No tenés permiso para editar esta solicitud.");
+
+        // Validaciones de longitud
+        if (string.IsNullOrWhiteSpace(request.Titulo) || request.Titulo.Length < 5 || request.Titulo.Length > 120)
+            throw new ArgumentException("El título debe tener entre 5 y 120 caracteres.");
+
+        if (string.IsNullOrWhiteSpace(request.Descripcion) || request.Descripcion.Length < 10 || request.Descripcion.Length > 4000)
+            throw new ArgumentException("La descripción debe tener entre 10 y 4000 caracteres.");
+
+        // Validar categoría
+        var categoria = await _db.Categorias.FirstOrDefaultAsync(c => c.Id == request.CategoriaId && c.TenantId == tenantId && c.Activo);
+        if (categoria == null)
+            throw new ArgumentException("La categoría no existe o no pertenece a la organización.");
+
+        // Detectar si cambió categoría o prioridad para recalcular SLA
+        var cambioCategoria = solicitud.CategoriaId != categoria.Id;
+        var cambioPrioridad = solicitud.Prioridad != request.Prioridad;
+
+        solicitud.Titulo = request.Titulo;
+        solicitud.Descripcion = request.Descripcion;
+        solicitud.CategoriaId = categoria.Id;
+        solicitud.Prioridad = request.Prioridad;
+
+        if ((cambioCategoria || cambioPrioridad) &&
+            solicitud.Estado != EstadoSolicitud.Resuelta &&
+            solicitud.Estado != EstadoSolicitud.Cerrada &&
+            solicitud.Estado != EstadoSolicitud.Cancelada)
+        {
+            var factor = request.Prioridad switch
+            {
+                Prioridad.Critica => 0.5,
+                Prioridad.Alta => 0.75,
+                Prioridad.Media => 1.0,
+                Prioridad.Baja => 2.0,
+                _ => 1.0
+            };
+            solicitud.FechaLimiteSla = solicitud.FechaCreacion.AddHours(categoria.SlaHoras * factor);
+        }
+
+        await _db.SaveChangesAsync();
+
+        return MapToDetalle(solicitud);
+    }
+
     public async Task<SolicitudDetalle?> ObtenerPorId(Guid tenantId, Guid id)
     {
         var solicitud = await _db.Solicitudes
@@ -241,6 +298,14 @@ public class AgenteItem
 }
 
 public class CrearSolicitudRequest
+{
+    public string Titulo { get; set; } = "";
+    public string Descripcion { get; set; } = "";
+    public Guid CategoriaId { get; set; }
+    public Prioridad Prioridad { get; set; }
+}
+
+public class EditarSolicitudRequest
 {
     public string Titulo { get; set; } = "";
     public string Descripcion { get; set; } = "";

@@ -107,4 +107,51 @@ public class SolicitudesController : ControllerBase
 
         return Ok(detalle);
     }
-}   
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Editar(Guid id, [FromBody] EditarSolicitudRequest request)
+    {
+        try
+        {
+            var tenantId = Guid.Parse(User.FindFirst("tenantId")!.Value);
+            var usuarioId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+            var rol = User.FindFirst("rol")!.Value;
+
+            var detalle = await _service.Editar(tenantId, usuarioId, rol, id, request);
+
+            if (detalle == null)
+                return NotFound(new
+                {
+                    type = "https://mesasitec.local/errores/recurso-no-encontrado",
+                    title = "Recurso no encontrado",
+                    status = 404,
+                    detail = "La solicitud no existe o no pertenece a la organización.",
+                    codigo = "RECURSO_NO_ENCONTRADO"
+                });
+
+            return Ok(detalle);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return StatusCode(403, new
+            {
+                type = "https://mesasitec.local/errores/operacion-no-permitida",
+                title = "Operación no permitida",
+                status = 403,
+                detail = "No tenés permiso para editar esta solicitud.",
+                codigo = "OPERACION_NO_PERMITIDA"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new
+            {
+                type = "https://mesasitec.local/errores/parametro-invalido",
+                title = "Parámetro inválido",
+                status = 400,
+                detail = ex.Message,
+                codigo = "PARAMETRO_INVALIDO"
+            });
+        }
+    }
+}
