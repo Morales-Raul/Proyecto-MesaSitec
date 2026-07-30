@@ -7,6 +7,7 @@ using Api.Datos;
 using Api.Seed;
 using Api.Auth;
 using Api.Aplicacion;
+using Api.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +40,8 @@ builder.Services.AddAuthorization();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<SolicitudesService>();
 builder.Services.AddScoped<CategoriasService>();
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 // Controllers + Swagger
 builder.Services.AddControllers()
@@ -94,13 +97,12 @@ using (var scope = app.Services.CreateScope())
     await SeedData.Inicializar(db);
 }
 
+app.UseExceptionHandler();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors();
-
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Urls.Add("http://0.0.0.0:5080");
