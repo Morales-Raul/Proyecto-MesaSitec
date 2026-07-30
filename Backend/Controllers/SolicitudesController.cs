@@ -87,25 +87,40 @@ public class SolicitudesController : ControllerBase
                 codigo = "PARAMETRO_INVALIDO"
             });
         }
+        catch (ValidacionException ex)
+{
+    return UnprocessableEntity(new
+    {
+        type = "https://mesasitec.local/errores/validacion",
+        title = "Error de validación",
+        status = 422,
+        detail = "Uno o más campos no cumplen con las reglas.",
+        codigo = "VALIDACION",
+        errores = ex.Errores
+    });
+    }
     }
 
     [HttpGet("{id}")]
-    public async Task<IActionResult> Detalle(Guid id)
-    {
-        var tenantId = Guid.Parse(User.FindFirst("tenantId")!.Value);
-        var detalle = await _service.ObtenerPorId(tenantId, id);
+public async Task<IActionResult> Detalle(Guid id)
+{
+    var tenantId = Guid.Parse(User.FindFirst("tenantId")!.Value);
+    var rol = User.FindFirst("rol")!.Value;
+    var usuarioId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
 
-        if (detalle == null)
-            return NotFound(new
-            {
-                type = "https://mesasitec.local/errores/recurso-no-encontrado",
-                title = "Recurso no encontrado",
-                status = 404,
-                detail = "La solicitud no existe o no pertenece a la organización.",
-                codigo = "RECURSO_NO_ENCONTRADO"
-            });
+    var detalle = await _service.ObtenerPorId(tenantId, id, rol, usuarioId);
 
-        return Ok(detalle);
+    if (detalle == null)
+        return NotFound(new
+        {
+            type = "https://mesasitec.local/errores/recurso-no-encontrado",
+            title = "Recurso no encontrado",
+            status = 404,
+            detail = "La solicitud no existe o no pertenece a la organización.",
+            codigo = "RECURSO_NO_ENCONTRADO"
+        });
+
+    return Ok(detalle);
     }
 
     [HttpPut("{id}")]
@@ -153,6 +168,18 @@ public class SolicitudesController : ControllerBase
                 codigo = "PARAMETRO_INVALIDO"
             });
         }
+        catch (ValidacionException ex)
+{
+    return UnprocessableEntity(new
+    {
+        type = "https://mesasitec.local/errores/validacion",
+        title = "Error de validación",
+        status = 422,
+        detail = "Uno o más campos no cumplen con las reglas.",
+        codigo = "VALIDACION",
+        errores = ex.Errores
+    });
+    }
     }
     [HttpPost("{id}/transiciones")]
 public async Task<IActionResult> EjecutarTransicion(Guid id, [FromBody] TransicionRequest request)

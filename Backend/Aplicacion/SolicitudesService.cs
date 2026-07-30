@@ -114,16 +114,21 @@ public class SolicitudesService
     }
 
     public async Task<SolicitudDetalle> Crear(Guid tenantId, Guid solicitanteId, CrearSolicitudRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.Titulo) || request.Titulo.Length < 5 || request.Titulo.Length > 120)
-            throw new ArgumentException("El título debe tener entre 5 y 120 caracteres.");
+{
+    var errores = new Dictionary<string, string[]>();
 
-        if (string.IsNullOrWhiteSpace(request.Descripcion) || request.Descripcion.Length < 10 || request.Descripcion.Length > 4000)
-            throw new ArgumentException("La descripción debe tener entre 10 y 4000 caracteres.");
+    if (string.IsNullOrWhiteSpace(request.Titulo) || request.Titulo.Length < 5 || request.Titulo.Length > 120)
+        errores["titulo"] = new[] { "El título debe tener entre 5 y 120 caracteres." };
 
-        var categoria = await _db.Categorias.FirstOrDefaultAsync(c => c.Id == request.CategoriaId && c.TenantId == tenantId && c.Activo);
-        if (categoria == null)
-            throw new ArgumentException("La categoría no existe o no pertenece a la organización.");
+    if (string.IsNullOrWhiteSpace(request.Descripcion) || request.Descripcion.Length < 10 || request.Descripcion.Length > 4000)
+        errores["descripcion"] = new[] { "La descripción debe tener entre 10 y 4000 caracteres." };
+
+    var categoria = await _db.Categorias.FirstOrDefaultAsync(c => c.Id == request.CategoriaId && c.TenantId == tenantId && c.Activo);
+    if (categoria == null)
+        errores["categoriaId"] = new[] { "La categoría no existe o no pertenece a la organización." };
+
+    if (errores.Any())
+        throw new ValidacionException(errores);
 
         var ahora = DateTime.UtcNow;
         var factor = request.Prioridad switch
@@ -134,7 +139,7 @@ public class SolicitudesService
             Prioridad.Baja => 2.0,
             _ => 1.0
         };
-        var fechaLimiteSla = SlaCalculator.CalcularFechaLimite(ahora, categoria.SlaHoras, request.Prioridad);
+        var fechaLimiteSla = SlaCalculator.CalcularFechaLimite(ahora, categoria!.SlaHoras, request.Prioridad);
 
         var año = ahora.Year;
         var correlativo = await _db.Solicitudes
@@ -149,7 +154,7 @@ public class SolicitudesService
             Codigo = codigo,
             Titulo = request.Titulo,
             Descripcion = request.Descripcion,
-            CategoriaId = categoria.Id,
+            CategoriaId = categoria!.Id,
             Prioridad = request.Prioridad,
             Estado = EstadoSolicitud.Nueva,
             SolicitanteId = solicitanteId,
@@ -188,6 +193,7 @@ public class SolicitudesService
             throw new UnauthorizedAccessException("No tenés permiso para editar esta solicitud.");
 
         // Validaciones de longitud
+                // Validaciones de longitud
         if (string.IsNullOrWhiteSpace(request.Titulo) || request.Titulo.Length < 5 || request.Titulo.Length > 120)
             throw new ArgumentException("El título debe tener entre 5 y 120 caracteres.");
 
@@ -205,7 +211,7 @@ public class SolicitudesService
 
         solicitud.Titulo = request.Titulo;
         solicitud.Descripcion = request.Descripcion;
-        solicitud.CategoriaId = categoria.Id;
+        solicitud.CategoriaId = categoria!.Id;
         solicitud.Prioridad = request.Prioridad;
 
         if ((cambioCategoria || cambioPrioridad) &&
@@ -229,15 +235,21 @@ public class SolicitudesService
         return MapToDetalle(solicitud);
     }
 
-    public async Task<SolicitudDetalle?> ObtenerPorId(Guid tenantId, Guid id)
-    {
-        var solicitud = await _db.Solicitudes
-            .Include(s => s.Categoria)
-            .Include(s => s.Solicitante)
-            .Include(s => s.Agente)
-            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
+    public async Task<SolicitudDetalle?> ObtenerPorId(Guid tenantId, Guid id, string? rol, Guid? usuarioId)
+{
+    var solicitud = await _db.Solicitudes
+        .Include(s => s.Categoria)
+        .Include(s => s.Solicitante)
+        .Include(s => s.Agente)
+        .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == tenantId);
 
-        return solicitud == null ? null : MapToDetalle(solicitud);
+    if (solicitud == null) return null;
+
+    // RN-03: Solicitante solo ve sus propias solicitudes
+    if (rol == "Solicitante" && solicitud.SolicitanteId != usuarioId)
+        return null; // provoca 404
+
+    return MapToDetalle(solicitud);
     }
 
     private SolicitudDetalle MapToDetalle(Solicitud s)

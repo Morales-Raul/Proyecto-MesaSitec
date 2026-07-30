@@ -93,12 +93,17 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await db.Database.EnsureCreatedAsync();
+    await db.Database.MigrateAsync();
     await SeedData.Inicializar(db);
 }
 
+app.UsePathBase("/api/v1");
 app.UseExceptionHandler();
-app.UseSwagger();
+app.UseSwagger(c => c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
+{
+    swaggerDoc.Servers = new List<OpenApiServer> { new OpenApiServer { Url = $"{httpReq.Scheme}://{httpReq.Host.Value}/api/v1" } };
+}));
+
 app.UseSwaggerUI();
 app.UseCors();
 app.UseAuthentication();
