@@ -21,6 +21,24 @@ const router = createRouter({
       path: '/',
       redirect: '/solicitudes',
     },
+    {
+      path: '/solicitudes/nueva',
+      name: 'SolicitudNueva',
+      component: () => import('../views/SolicitudFormView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/solicitudes/:id/editar',
+      name: 'SolicitudEditar',
+      component: () => import('../views/SolicitudFormView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/solicitudes/:id',
+      name: 'SolicitudDetalle',
+      component: () => import('../views/SolicitudDetalleView.vue'),
+      meta: { requiresAuth: true },
+    },
   ],
 });
 

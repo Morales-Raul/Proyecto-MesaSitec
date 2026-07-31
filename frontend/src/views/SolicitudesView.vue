@@ -21,6 +21,9 @@ function verDetalle(id: string) {
 <template>
   <div>
     <h1>Solicitudes</h1>
+    <button @click="router.push('/solicitudes/nueva')" data-testid="btn-nueva-solicitud">
+  Nueva solicitud
+</button>
 
     <!-- Filtros -->
     <div>
