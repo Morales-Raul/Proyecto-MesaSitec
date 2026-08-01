@@ -302,7 +302,19 @@ public class SolicitudesService
 
     var maquina = new MaquinaEstados();
     maquina.Ejecutar(solicitud, request.Accion, rol, usuarioId, request.AgenteId, request.Motivo);
-
+    // Recalcular SLA al reabrir
+    if (request.Accion == "reabrir")
+    {
+        var categoria = await _db.Categorias.FindAsync(solicitud.CategoriaId);
+        if (categoria != null)
+        {
+            solicitud.FechaLimiteSla = SlaCalculator.CalcularFechaLimite(
+            solicitud.FechaCreacion,
+            categoria.SlaHoras,
+            solicitud.Prioridad);
+            }
+            }
+            
     await _db.SaveChangesAsync();
 
     return MapToDetalle(solicitud);
