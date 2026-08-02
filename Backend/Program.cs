@@ -63,7 +63,10 @@ builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 // Controllers + Swagger
-builder.Services.AddControllers()
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<ProblemJsonResultFilter>(); // Filtro global para Content-Type problem+json
+})
     .AddJsonOptions(opts =>
     {
         opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
@@ -114,7 +117,6 @@ using (var scope = app.Services.CreateScope())
 
 app.UsePathBase("/api/v1");
 app.UseExceptionHandler();
-app.UseMiddleware<ProblemJsonMiddleware>();
 app.UseSwagger(c => c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
 {
     swaggerDoc.Servers = new List<OpenApiServer> { new OpenApiServer { Url = $"{httpReq.Scheme}://{httpReq.Host.Value}/api/v1" } };
