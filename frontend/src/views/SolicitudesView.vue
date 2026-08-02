@@ -3,6 +3,7 @@ import { onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useSolicitudesStore } from '../stores/solicitudes';
 import { useCategoriasStore } from '../stores/categorias';
+import TransicionModal from '../components/TransicionModal.vue';
 
 const store = useSolicitudesStore();
 const catStore = useCategoriasStore();
@@ -53,7 +54,7 @@ function verDetalle(id: string) {
             <option value="">Todos los estados</option>
             <option value="Nueva">Nueva</option>
             <option value="Asignada">Asignada</option>
-            <option value="En proceso">En Proceso</option>
+            <option value="Enproceso">En Proceso</option>
             <option value="Resuelta">Resuelta</option>
             <option value="Cerrada">Cerrada</option>
             <option value="Cancelada">Cancelada</option>
