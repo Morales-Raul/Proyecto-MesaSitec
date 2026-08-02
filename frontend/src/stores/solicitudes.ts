@@ -25,7 +25,7 @@ export const useSolicitudesStore = defineStore('solicitudes', () => {
     loading.value = true;
     error.value = null;
     try {
-      const params: Record<string, any> = {
+      const params: Record<string, unknown> = {
         page: page.value,
         pageSize: pageSize.value,
         sort: sort.value,
@@ -41,8 +41,9 @@ export const useSolicitudesStore = defineStore('solicitudes', () => {
       items.value = data.items;
       total.value = data.total;
       totalPaginas.value = data.totalPaginas;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Error al cargar solicitudes';
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      error.value = err.response?.data?.detail || 'Error al cargar solicitudes';
     } finally {
       loading.value = false;
     }

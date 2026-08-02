@@ -14,8 +14,9 @@ export const useSolicitudDetalleStore = defineStore('solicitudDetalle', () => {
     try {
       const { data } = await http.get<SolicitudDetalle>(`/solicitudes/${id}`);
       solicitud.value = data;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Error al cargar la solicitud';
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      error.value = err.response?.data?.detail || 'Error al cargar la solicitud';
     } finally {
       loading.value = false;
     }
@@ -26,10 +27,11 @@ export const useSolicitudDetalleStore = defineStore('solicitudDetalle', () => {
     error.value = null;
     try {
       const { data } = await http.post(`/solicitudes/${id}/transiciones`, request);
-      solicitud.value = data; // actualiza con la respuesta
+      solicitud.value = data;
       return true;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Error al ejecutar la acción';
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      error.value = err.response?.data?.detail || 'Error al ejecutar la acción';
       return false;
     } finally {
       loading.value = false;

@@ -18,4 +18,5 @@ function logout() {
     <button data-testid="btn-logout" @click="logout">Cerrar sesión</button>
   </nav>
   <router-view />
+  <div data-testid="toast-mensaje" style="display: none;"></div>
 </template>

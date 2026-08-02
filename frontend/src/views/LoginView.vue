@@ -20,8 +20,9 @@ async function login() {
     });
     auth.setAuth(data.accessToken, data.usuario);
     router.push('/solicitudes');
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Error al iniciar sesión';
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { detail?: string } } };
+    error.value = err.response?.data?.detail || 'Error al iniciar sesión';
   }
 }
 </script>

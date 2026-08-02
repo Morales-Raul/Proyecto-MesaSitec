@@ -13,6 +13,22 @@ const esEdicion = computed(() => !!route.params.id);
 const id = route.params.id as string | undefined;
 const errorGeneral = ref('');
 
+const erroresLocales = ref<Record<string, string>>({});
+
+function validarLocalmente(): boolean {
+  erroresLocales.value = {};
+  if (!store.titulo || store.titulo.length < 5 || store.titulo.length > 120) {
+    erroresLocales.value.titulo = 'El título debe tener entre 5 y 120 caracteres.';
+  }
+  if (!store.descripcion || store.descripcion.length < 10 || store.descripcion.length > 4000) {
+    erroresLocales.value.descripcion = 'La descripción debe tener entre 10 y 4000 caracteres.';
+  }
+  if (!store.categoriaId) {
+    erroresLocales.value.categoriaId = 'Debe seleccionar una categoría.';
+  }
+  return Object.keys(erroresLocales.value).length === 0;
+}
+
 onMounted(async () => {
   await catStore.cargar();
   if (esEdicion.value && id) {
@@ -23,6 +39,7 @@ onMounted(async () => {
 });
 
 async function submit() {
+  if (!validarLocalmente()) return;
   errorGeneral.value = '';
   const result = esEdicion.value
     ? await store.editar(id!)
@@ -46,13 +63,17 @@ function cancelar() {
       <div>
         <label>Título</label>
         <input v-model="store.titulo" data-testid="form-titulo" />
-        <span v-if="store.errores.titulo" data-testid="error-titulo">{{ store.errores.titulo[0] }}</span>
+        <span v-if="store.errores.titulo || erroresLocales.titulo" data-testid="error-titulo">
+          {{ store.errores.titulo ? store.errores.titulo[0] : erroresLocales.titulo }}
+        </span>
       </div>
 
       <div>
         <label>Descripción</label>
         <textarea v-model="store.descripcion" data-testid="form-descripcion"></textarea>
-        <span v-if="store.errores.descripcion" data-testid="error-descripcion">{{ store.errores.descripcion[0] }}</span>
+        <span v-if="store.errores.descripcion || erroresLocales.descripcion" data-testid="error-descripcion">
+          {{ store.errores.descripcion ? store.errores.descripcion[0] : erroresLocales.descripcion }}
+        </span>
       </div>
 
       <div>
@@ -63,7 +84,9 @@ function cancelar() {
             {{ cat.nombre }}
           </option>
         </select>
-        <span v-if="store.errores.categoriaId" data-testid="error-categoria">{{ store.errores.categoriaId[0] }}</span>
+        <span v-if="store.errores.categoriaId || erroresLocales.categoriaId" data-testid="error-categoria">
+          {{ store.errores.categoriaId ? store.errores.categoriaId[0] : erroresLocales.categoriaId }}
+        </span>
       </div>
 
       <div>

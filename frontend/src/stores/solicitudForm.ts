@@ -34,11 +34,12 @@ export const useSolicitudFormStore = defineStore('solicitudForm', () => {
       };
       const { data } = await http.post<SolicitudDetalle>('/solicitudes', payload);
       return data;
-    } catch (e: any) {
-      if (e.response?.data?.codigo === 'VALIDACION') {
-        errores.value = e.response.data.errores;
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { codigo?: string; errores?: Record<string, string[]>; detail?: string } } };
+      if (err.response?.data?.codigo === 'VALIDACION') {
+        errores.value = err.response.data.errores || {};
       } else {
-        error.value = e.response?.data?.detail || 'Error al crear la solicitud';
+        error.value = err.response?.data?.detail || 'Error al crear la solicitud';
       }
       return null;
     } finally {
@@ -59,11 +60,12 @@ export const useSolicitudFormStore = defineStore('solicitudForm', () => {
       };
       const { data } = await http.put<SolicitudDetalle>(`/solicitudes/${id}`, payload);
       return data;
-    } catch (e: any) {
-      if (e.response?.data?.codigo === 'VALIDACION') {
-        errores.value = e.response.data.errores;
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { codigo?: string; errores?: Record<string, string[]>; detail?: string } } };
+      if (err.response?.data?.codigo === 'VALIDACION') {
+        errores.value = err.response.data.errores || {};
       } else {
-        error.value = e.response?.data?.detail || 'Error al editar la solicitud';
+        error.value = err.response?.data?.detail || 'Error al editar la solicitud';
       }
       return null;
     } finally {
@@ -80,8 +82,9 @@ export const useSolicitudFormStore = defineStore('solicitudForm', () => {
       descripcion.value = data.descripcion;
       categoriaId.value = data.categoria.id;
       prioridad.value = data.prioridad;
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Error al cargar la solicitud';
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { detail?: string } } };
+      error.value = err.response?.data?.detail || 'Error al cargar la solicitud';
     } finally {
       loading.value = false;
     }
