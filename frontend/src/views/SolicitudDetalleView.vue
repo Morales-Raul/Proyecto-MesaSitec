@@ -103,6 +103,17 @@ async function confirmarAccion() {
     modalError.value = store.error || 'Error al ejecutar la acción';
   }
 }
+
+const puedeEditar = computed(() => {
+  const rol = auth.usuario?.rol;
+  const estado = store.solicitud?.estado;
+  const esPropia = store.solicitud?.solicitante.id === auth.usuario?.id;
+  if (!rol || !estado) return false;
+  if (rol === 'Admin' || rol === 'Agente') return true;
+  if (rol === 'Solicitante') return esPropia && estado === 'Nueva';
+  return false;
+});
+
 </script>
 
 <template>
@@ -133,7 +144,7 @@ async function confirmarAccion() {
       <button v-if="accionesDisponibles.includes('cerrar')" data-testid="btn-accion-cerrar" @click="abrirModal('cerrar')">Cerrar</button>
       <button v-if="accionesDisponibles.includes('reabrir')" data-testid="btn-accion-reabrir" @click="abrirModal('reabrir')">Reabrir</button>
       <button v-if="accionesDisponibles.includes('cancelar')" data-testid="btn-accion-cancelar" @click="abrirModal('cancelar')">Cancelar</button>
-      <button data-testid="btn-editar" @click="router.push(`/solicitudes/${id}/editar`)">Editar</button>
+      <button v-if="puedeEditar" data-testid="btn-editar" @click="router.push(`/solicitudes/${id}/editar`)">Editar</button>
     </div>
 
     <!-- Modal de acción -->
