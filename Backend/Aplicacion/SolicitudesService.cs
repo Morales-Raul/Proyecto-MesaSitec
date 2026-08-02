@@ -27,10 +27,17 @@ public class SolicitudesService
         int pageSize,
         string? sort)
     {
+        // Validaciones de paginación
         if (page < 1)
-            throw new ArgumentException("La página debe ser mayor o igual a 1.");
-        if (pageSize > 100)
-            throw new ArgumentException("El tamaño de página máximo es 100.");
+        throw new ArgumentException("La página debe ser mayor o igual a 1.");
+        if (pageSize < 1 || pageSize > 100)
+        throw new ArgumentException("El tamaño de página debe estar entre 1 y 100.");
+
+        // Validaciones de parámetros de filtro
+        if (!string.IsNullOrWhiteSpace(estado) && !Enum.TryParse<EstadoSolicitud>(estado, out _))
+            throw new ArgumentException($"El estado '{estado}' no es válido.");
+        if (!string.IsNullOrWhiteSpace(prioridad) && !Enum.TryParse<Prioridad>(prioridad, out _))
+            throw new ArgumentException($"La prioridad '{prioridad}' no es válida.");
 
         var query = _db.Solicitudes
             .Include(s => s.Categoria)
@@ -246,6 +253,10 @@ public class SolicitudesService
         if (solicitud == null)
             throw new KeyNotFoundException("Solicitud no encontrada.");
 
+        var maquina = new MaquinaEstados();
+        maquina.Ejecutar(solicitud, request.Accion, rol, usuarioId, request.AgenteId, request.Motivo);
+
+        // Validación de agente (RN-05) DESPUÉS de validar transición y permisos
         if (request.Accion == "asignar")
         {
             if (request.AgenteId == null)
@@ -260,9 +271,6 @@ public class SolicitudesService
             if (agente == null)
                 throw new AgenteInvalidoException();
         }
-
-        var maquina = new MaquinaEstados();
-        maquina.Ejecutar(solicitud, request.Accion, rol, usuarioId, request.AgenteId, request.Motivo);
 
         // Recalcular SLA al reabrir
         if (request.Accion == "reabrir")

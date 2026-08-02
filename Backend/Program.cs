@@ -32,6 +32,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = "mesasitec",
             IssuerSigningKey = new SymmetricSecurityKey(key)
         };
+        options.Events = new JwtBearerEvents
+    {
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();
+            context.Response.StatusCode = 401;
+            context.Response.ContentType = "application/problem+json";
+            var error = new
+            {
+                type = "https://mesasitec.local/errores/no-autenticado",
+                title = "No autenticado",
+                status = 401,
+                detail = "Token ausente, inválido o expirado.",
+                codigo = "NO_AUTENTICADO"
+            };
+            await context.Response.WriteAsJsonAsync(error);
+        }
+    };        
     });
 
 builder.Services.AddAuthorization();
@@ -98,6 +116,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UsePathBase("/api/v1");
+app.UseMiddleware<ProblemJsonMiddleware>();
 app.UseExceptionHandler();
 app.UseSwagger(c => c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
 {
