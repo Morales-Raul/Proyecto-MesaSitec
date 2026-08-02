@@ -53,7 +53,7 @@ function verDetalle(id: string) {
             <option value="">Todos los estados</option>
             <option value="Nueva">Nueva</option>
             <option value="Asignada">Asignada</option>
-            <option value="EnProceso">En Proceso</option>
+            <option value="En proceso">En Proceso</option>
             <option value="Resuelta">Resuelta</option>
             <option value="Cerrada">Cerrada</option>
             <option value="Cancelada">Cancelada</option>
