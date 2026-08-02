@@ -8,6 +8,7 @@ using Api.Seed;
 using Api.Auth;
 using Api.Aplicacion;
 using Api.Middlewares;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -33,23 +34,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(key)
         };
         options.Events = new JwtBearerEvents
-    {
-        OnChallenge = async context =>
         {
-            context.HandleResponse();
-            context.Response.StatusCode = 401;
-            context.Response.ContentType = "application/problem+json";
-            var error = new
+            OnChallenge = async context =>
             {
-                type = "https://mesasitec.local/errores/no-autenticado",
-                title = "No autenticado",
-                status = 401,
-                detail = "Token ausente, inválido o expirado.",
-                codigo = "NO_AUTENTICADO"
-            };
-            await context.Response.WriteAsJsonAsync(error);
-        }
-    };        
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/problem+json";
+                var error = new
+                {
+                    type = "https://mesasitec.local/errores/no-autenticado",
+                    title = "No autenticado",
+                    status = 401,
+                    detail = "Token ausente, inválido o expirado.",
+                    codigo = "NO_AUTENTICADO"
+                };
+                await context.Response.WriteAsJsonAsync(error);
+            }
+        };
     });
 
 builder.Services.AddAuthorization();
@@ -67,35 +68,31 @@ builder.Services.AddControllers()
     {
         opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         opts.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-    });
-    
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "MesaSitec API", Version = "v1" });
-    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    })
+    .ConfigureApiBehaviorOptions(options =>
     {
-        Description = "JWT Authorization header usando el esquema Bearer. Ejemplo: 'Bearer {token}'",
-        Name = "Authorization",
-        In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer"
-    });
-    c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
+        options.InvalidModelStateResponseFactory = context =>
         {
-            new OpenApiSecurityScheme
+            var errors = context.ModelState
+                .Where(e => e.Value!.Errors.Count > 0)
+                .ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value!.Errors.Select(e => e.ErrorMessage).ToArray()
+                );
+
+            var problemDetails = new ProblemDetails
             {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            new List<string>()
-        }
+                Type = "https://mesasitec.local/errores/validacion",
+                Title = "Error de validación",
+                Status = StatusCodes.Status422UnprocessableEntity,
+                Detail = "Uno o más campos no cumplen con las reglas.",
+                Extensions = { ["codigo"] = "VALIDACION", ["errores"] = errors }
+            };
+
+            context.HttpContext.Response.ContentType = "application/problem+json";
+            return new ObjectResult(problemDetails) { StatusCode = 422 };
+        };
     });
-});
 
 builder.Services.AddCors(options =>
 {
@@ -116,13 +113,12 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UsePathBase("/api/v1");
-app.UseMiddleware<ProblemJsonMiddleware>();
 app.UseExceptionHandler();
+app.UseMiddleware<ProblemJsonMiddleware>();
 app.UseSwagger(c => c.PreSerializeFilters.Add((swaggerDoc, httpReq) =>
 {
     swaggerDoc.Servers = new List<OpenApiServer> { new OpenApiServer { Url = $"{httpReq.Scheme}://{httpReq.Host.Value}/api/v1" } };
 }));
-
 app.UseSwaggerUI();
 app.UseCors();
 app.UseAuthentication();
