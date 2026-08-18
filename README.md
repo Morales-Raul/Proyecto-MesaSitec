@@ -1,6 +1,6 @@
-# MesaSitec – Prueba Técnica
+# Mesa-Ayuda
 
-Sistema de mesa de servicio multi-tenant desarrollado como prueba técnica para Sitecpro.
+Sistema de mesa de servicio multi-tenant.
 
 ## Requisitos previos
 
