@@ -46,7 +46,7 @@ Sistema de mesa de servicio multi-tenant.
 | admin@sur.test | Bufete Sur | Admin |
 | user1@sur.test | Bufete Sur | Solicitante |
 
-Contraseña para todos: `Sitec.2026`
+Contraseña para todos: `Admin123.`
 
 ## Endpoints implementados
 
